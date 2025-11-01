@@ -6,7 +6,7 @@ with open("../the-verdict.txt", "r", encoding="utf-8") as f:
 
 vocab_size = 50257
 output_dim = 256
-token_embedding_layer = torch.nn.Embedding(vocab_size, output_dim)
+token_embedding_layer = torch.nn.Embedding(vocab_size, output_dim) #this is creating an embedding layer
 
 max_length = 4
 dataloader = create_dataloader(raw_text, batch_size=8, max_length=max_length, stride=max_length, shuffle=False)
