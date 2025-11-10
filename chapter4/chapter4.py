@@ -2,8 +2,12 @@ import tiktoken
 import torch
 import torch.nn as nn
 from config import GPT_CONFIG_124M
-from GPTModel import DummyGPTModel
+from GPTModel import GPTModel
 from LayerNorm import LayerNorm
+from FeedForward import FeedForward
+from ExampleDeepNeuralNetwork import ExampleDeepNeuralNetwork
+from TransformerBlock import TransformerBlock
+from GenerateText import generate_text_simple
 
 #4.1
 tokenizer = tiktoken.get_encoding("gpt2")
@@ -17,10 +21,10 @@ print(batch)
 #batch is just equivalent to the tokenised verions of txt
 
 torch.manual_seed(123)
-model = DummyGPTModel(GPT_CONFIG_124M)
+model = GPTModel(GPT_CONFIG_124M)
 logits = model(batch)
 print("Output shape:", logits.shape)
-#logits is just equivalent to the tokenised versions of txt
+#logits is just the outputs of txt
 print(logits)
 
 #4.2
@@ -54,3 +58,87 @@ mean = out_ln.mean(dim=-1, keepdim=True)
 var = out_ln.var(dim=-1, unbiased=False, keepdim=True)
 print("Mean:\n", mean)
 print("Variance:\n", var)
+
+#4.3
+
+ffn = FeedForward(GPT_CONFIG_124M)
+x = torch.rand(2, 3, 768)
+out = ffn(x)
+print(out.shape)
+
+layer_sizes = [3, 3, 3, 3, 3, 1]
+sample_input = torch.tensor([[1., 0., -1.]])
+torch.manual_seed(123)
+
+model_without_shortcut = ExampleDeepNeuralNetwork(
+layer_sizes, use_shortcut=False
+)
+
+
+def print_gradients(model, x):
+    output = model(x)
+    target = torch.tensor([[0.]])
+    loss = nn.MSELoss() #mean squared error loss
+    loss = loss(output, target) #target is all 0s
+    loss.backward()
+    for name, param in model.named_parameters():
+        if 'weight' in name:
+            print(f"{name} has gradient mean of {param.grad.abs().mean().item()}")
+
+print_gradients(model_without_shortcut, sample_input)
+#this shows the vanishing gradients as small gradients are multiplied by even smaller gradients
+
+print("the model below uses shortcuts")
+
+torch.manual_seed(123)
+model_with_shortcut = ExampleDeepNeuralNetwork(
+    layer_sizes, use_shortcut=True
+)
+
+print_gradients(model_with_shortcut, sample_input)
+
+torch.manual_seed(123)
+x = torch.rand(2, 4, 768)
+block = TransformerBlock(GPT_CONFIG_124M)
+output = block(x)
+
+print("Input shape:", x.shape)
+print("Output shape:", output.shape)
+
+print("printing shapes of full gpt model input/output \n")
+model = GPTModel(GPT_CONFIG_124M)
+out = model(batch)
+print("Input batch:\n", batch)
+print("\nOutput shape:", out.shape)
+print(out)
+
+print("printing params of full gpt model \n")
+total_params = sum(p.numel() for p in model.parameters())
+print(f"Total number of parameters: {total_params:,}") #there is a discrepancy between the number of params declared in config (124 M) and printed here (163 M)
+#this is because there are different layers for casting in and out of token_ids. using the same layer is called 'weight tying'. using it can decrease performance but does decrease memory performance
+#as further insight, out head is equal to (vocab_size * embedding_dimensions)
+
+total_size_bytes = total_params * 4
+total_size_mb = total_size_bytes / (1024 * 1024)
+print(f"Total size of the model: {total_size_mb:.2f} MB")
+
+start_context = "Hello, I am"
+encoded = tokenizer.encode(start_context)
+print("encoded:", encoded)
+encoded_tensor = torch.tensor(encoded).unsqueeze(0)
+print("encoded_tensor.shape:", encoded_tensor.shape)
+
+model.eval()
+
+out = generate_text_simple(
+    model=model,
+idx=encoded_tensor,
+max_new_tokens=6,
+context_size=GPT_CONFIG_124M["context_length"]
+)
+
+print("output:", out)
+print("Output length:", len(out[0]))
+
+decoded_text = tokenizer.decode(out.squeeze(0).tolist())
+print(decoded_text)

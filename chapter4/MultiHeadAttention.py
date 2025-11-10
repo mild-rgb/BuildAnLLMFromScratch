@@ -59,4 +59,5 @@ class MultiHeadAttention(nn.Module):
         )
 
         context_vec = self.out_proj(context_vec)
+        #out_proj is needed because without it, the output from the heads is just stacked. out_proj is needed in order
         return context_vec

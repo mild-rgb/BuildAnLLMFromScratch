@@ -1,0 +1,19 @@
+trivial. i just need to edit the named params given in config.
+
+the bonus is more interesting tho
+
+assuming weight tying and using gpt-2-medium
+
+TOKEN_EMBEDDING: (50257[vocab size]*1024[emb dim]) = 51463168 params
+
+POSITION_EMBEDDING: (1024[context_length]*[1024]) = 1048576
+
+then in each transformer head:
+
+2 * emb_dim for layer norm
+
+4 * (context_length^2) for query, key, value, and output matrices
+
+2 * (4 * 1024[context_length])[this is because of the scaling up to a higher dimension and back down] * 1024[context_length]
+
+then multiply for each transformer head
