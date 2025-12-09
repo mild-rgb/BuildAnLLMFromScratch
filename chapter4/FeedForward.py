@@ -1,6 +1,6 @@
 import torch.nn as nn
-from GELU import GELU
-from config import GPT_CONFIG_124M
+from chapter4.GELU import GELU
+from chapter4.config import GPT_CONFIG_124M
 
 class FeedForward(nn.Module):
     def __init__(self, cfg):

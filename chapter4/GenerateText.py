@@ -2,12 +2,12 @@ import torch
 import tiktoken
 import torch
 import torch.nn as nn
-from config import GPT_CONFIG_124M
-from GPTModel import GPTModel
-from LayerNorm import LayerNorm
-from FeedForward import FeedForward
-from ExampleDeepNeuralNetwork import ExampleDeepNeuralNetwork
-from TransformerBlock import TransformerBlock
+from chapter4.config import GPT_CONFIG_124M
+from chapter4.GPTModel import GPTModel
+from chapter4.LayerNorm import LayerNorm
+from chapter4.FeedForward import FeedForward
+from chapter4.ExampleDeepNeuralNetwork import ExampleDeepNeuralNetwork
+from chapter4.TransformerBlock import TransformerBlock
 
 def generate_text_simple(model, idx, max_new_tokens, context_size):
     for _ in range(max_new_tokens):
