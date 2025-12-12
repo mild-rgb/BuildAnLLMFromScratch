@@ -46,30 +46,31 @@ targets = torch.tensor([[3626, 6100, 345 ], [1107, 588, 11311]])
 
 with torch.no_grad():              #disables gradient tracking
 	logits = model(inputs)     #logits are floats essentially 
-probas = torch.softmax(inputs, dim=-1) #this gets cast to probabilities which sum to 1 
-print(probas.shape)
+probas = torch.softmax(logits, dim=-1) #this gets cast to probabilities which sum to 1 
+print(probas.shape) #this is a 2,3,50257
+#i.e, 2 inputs of 3 words, with 50257 predictions about what could follow each
 
-token_ids = torch.argmax(probas, dim=-1, keepdim=True) #choose the highest values 
-print("Token IDs:\n", token_ids)
+token_ids = torch.argmax(probas, dim=-1, keepdim=True) #choose the highest values of probas from the last dimension and preserve the other dimensions of the 'slice' with the highest value. for example, see below
+print("Token IDs:\n", token_ids) #this has a trailing dimension. despite being a (2,2), it has 3 brackets. the highest values of the 50257 have been taken for each other dimension. this collapses the matrix to a 2,3,1.
 
 print(f"Targets batch 1: {token_ids_to_text(targets[0], tokenizer)}")
 print(f"Outputs batch 1:"
 f" {token_ids_to_text(token_ids[0].flatten(), tokenizer)}")
 
 text_idx = 0
-target_probas_1 = probas[text_idx, [0, 1, 2], targets[text_idx]]
+target_probas_1 = probas[text_idx, [0, 1, 2], targets[text_idx]] #this is a list of 3 numbers. dimension 0 is the batch number of probas. dimension 1 is each of the 3 1, 50257 dimensions. dimension 2 is, for example, the probability at position 3626, i.e, the probability of token 3626 being picked 
 print("Text 1:", target_probas_1)
 text_idx = 1
-target_probas_2 = probas[text_idx, [0, 1, 2], targets[text_idx]]
+target_probas_2 = probas[text_idx, [0, 1, 2], targets[text_idx]] #same here
 print("Text 2:", target_probas_2)
 
-log_probas = torch.log(torch.cat((target_probas_1, target_probas_2)))
+log_probas = torch.log(torch.cat((target_probas_1, target_probas_2))) #make a tensor of length 6 by concating the correct possibilities of the 2 strings in the batch and take the log. the log is used because it converts what would be multiplication of very small/large numbers into addition of moderately sized numbers
 print(log_probas)
 
-avg_log_probas = torch.mean(log_probas)
+avg_log_probas = torch.mean(log_probas) #take the mean of the logs 
 print(avg_log_probas)
 
-neg_avg_log_probas = avg_log_probas * -1
+neg_avg_log_probas = avg_log_probas * -1 #make it a psoitive number (the aim will be to make it smaller) 
 print(neg_avg_log_probas)
 
 print("Logits shape:", logits.shape)
