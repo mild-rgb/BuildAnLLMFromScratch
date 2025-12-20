@@ -58,11 +58,12 @@ print(f"Outputs batch 1:"
 f" {token_ids_to_text(token_ids[0].flatten(), tokenizer)}")
 
 text_idx = 0
-target_probas_1 = probas[text_idx, [0, 1, 2], targets[text_idx]] #this is a list of 3 numbers. dimension 0 is the batch number of probas. dimension 1 is each of the 3 1, 50257 dimensions. dimension 2 is, for example, the probability at position 3626, i.e, the probability of token 3626 being picked 
+target_probas_1 = probas[text_idx, [0, 1, 2], targets[text_idx]] #from probas, select from the first batch, all(in this case, all means 3) of the tokens, and then the values corresponding to the correct answers. 
 print("Text 1:", target_probas_1)
 text_idx = 1
 target_probas_2 = probas[text_idx, [0, 1, 2], targets[text_idx]] #same here
 print("Text 2:", target_probas_2)
+#each probas contains the probabilities of the correct answer being picked
 
 log_probas = torch.log(torch.cat((target_probas_1, target_probas_2))) #make a tensor of length 6 by concating the correct possibilities of the 2 strings in the batch and take the log. the log is used because it converts what would be multiplication of very small/large numbers into addition of moderately sized numbers
 print(log_probas)
@@ -82,3 +83,48 @@ print("Flattened logits:", logits_flat.shape)
 print("Flattened targets:", targets_flat.shape)
 
 
+file_path = "the-verdict.txt"
+with open(file_path, "r", encoding="utf-8") as file:
+	text_data = file.read()
+
+total_characters = len(text_data)
+total_tokens = len(tokenizer.encode(text_data))
+print("Characters:", total_characters)
+print("Tokens:", total_tokens)
+
+
+from chapter28.dataloader_v1 import create_dataloader #at this moment, i realise jupyter is a good idea
+
+train_ratio = 0.90
+split_idx = int(train_ratio * len(text_data))
+train_data = text_data[:split_idx]
+val_data = text_data[split_idx:]
+
+
+train_loader = create_dataloader(
+	train_data,
+	batch_size=2,
+	max_length=GPT_CONFIG_124M["context_length"],
+	stride=GPT_CONFIG_124M["context_length"],
+	drop_last=True,
+	shuffle=True,
+	num_workers=0
+)
+
+val_loader = create_dataloader(
+	val_data,
+	batch_size=2,
+	max_length=GPT_CONFIG_124M["context_length"],
+	stride=GPT_CONFIG_124M["context_length"],
+	drop_last=False,
+	shuffle=False,
+	num_workers=0
+)
+
+print("Train loader:")
+for x, y in train_loader:
+	print(x.shape, y.shape)
+
+print("\nValidation loader:")
+for x, y in val_loader:
+	print(x.shape, y.shape)
