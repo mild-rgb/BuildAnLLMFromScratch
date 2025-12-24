@@ -14,15 +14,14 @@ def generate_text_simple(model, idx, max_new_tokens, context_size):
         idx_cond = idx[:, -context_size:] #crops current context to maximum size
         with torch.no_grad():
             logits = model(idx_cond)
-
-        logits = logits[:, -1, :]
+        logits = logits[:, -1, :] #this is because the model outputs predictions based on each token. example - given tokens 1, 2, 3, 4, 5, the model will output predictions for 2, 3, 4, 5, 6. only the prediction for token 6 is needed
         probas = torch.softmax(logits, dim=-1)
         idx_next = torch.argmax(probas, dim=-1, keepdim=True)
         idx = torch.cat((idx, idx_next), dim=1)
 
     return idx
 
-
+'''
 tokenizer = tiktoken.get_encoding("gpt2")
 torch.manual_seed(123)
 start_context = "i am cheese"
@@ -47,3 +46,4 @@ print("Output length:", len(out[0]))
 
 decoded_text = tokenizer.decode(out.squeeze(0).tolist())
 print(decoded_text)
+'''
