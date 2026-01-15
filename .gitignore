@@ -60,3 +60,6 @@ docs/_build/
 
 # saved modes 
 *.pth
+
+# really big files 
+chapter5/gpt2/*
