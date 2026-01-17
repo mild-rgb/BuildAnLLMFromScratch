@@ -1,6 +1,9 @@
-from chapter55 import GPT_CONFIG_124M
 import torch
+import numpy as np
 import urllib.request
+from chapter4.GPTModel import GPTModel
+import tiktoken
+
 url = (
 "https://raw.githubusercontent.com/rasbt/"
 "LLMs-from-scratch/main/ch05/"
@@ -43,7 +46,7 @@ GPT_CONFIG_124M = {
 
 model_name = "gpt2-small (124M)"
 NEW_CONFIG = GPT_CONFIG_124M.copy()
-NEW_CONFIG.update(model_configs[model_name])
+NEW_CONFIG.update(model_configs[model_name]) #take the properties ofgpt2-small and assign 
 
 NEW_CONFIG.update({"context_length": 1024})
 NEW_CONFIG.update({"qkv_bias": True})
@@ -52,28 +55,65 @@ gpt = GPTModel(NEW_CONFIG)
 gpt.eval()
 
 def assign(left, right):
-	if left.shape != right.shape:
+	if left.shape != right.shape: # this is to make sure that sides are equal (unsure how to phrase this)
 		raise ValueError(f"Shape mismatch. Left: {left.shape}, "
 			"Right: {right.shape}"
 		)
-	return torch.nn.Parameter(torch.tensor(right))
+	return torch.nn.Parameter(torch.tensor(right)) #turns right into a parameter?
 
-import numpy as np 
 
-import numpy as np
+def text_to_token_ids(text, tokenizer):
+    encoded = tokenizer.encode(text, allowed_special={'<|endoftext|>'})
+    encoded_tensor = torch.tensor(encoded).unsqueeze(0)
+    return encoded_tensor
+
+
+def token_ids_to_text(token_ids, tokenizer):
+    flat = token_ids.squeeze(0)
+    return tokenizer.decode(flat.tolist())
+
+
+
+
+def generate(model, idx, max_new_tokens, context_size, temperature=0.0, top_k=None, eos_id=None):
+    for _ in range(max_new_tokens):  # iterate max_new_tokens times
+        idx_cond = idx[:, -context_size:]  # this is the context length cut - from the start to -context_length, take all values
+        with torch.no_grad():  # if ^^ was not included, the model would be given something longer than context length.
+            logits = model (idx_cond)
+        logits = logits[:, -1, :]  # model takes sequences of tokens sequentially from batch. model outputs predictions of the next token for>
+
+        if top_k is not None:
+            top_logits, _ = torch.topk(logits, top_k)
+            min_val = top_logits[:, -1]
+            logits = torch.where(
+                logits < min_val,
+                torch.tensor(float('-inf')).to(logits.device),
+                logits
+            )
+        if temperature > 0.0:
+            logits = logits/temperature
+            probs = torch.softmax(logits, dim=-1)
+            idx_next = torch.multinomial(probs, num_samples=1)
+        else:
+            idx_next = torch.argmax(logits, dim=-1, keepdim=True)
+        if idx_next == eos_id:
+            break
+        idx = torch.cat((idx, idx_next), dim=1)
+    return idx
+
 
 # Sets the model’s positional and token embedding weights to those specified in `params`.
 def load_weights_into_gpt(gpt, params):
     # Embeddings
-    gpt.pos_emb.weight = assign(gpt.pos_emb.weight, params["wpe"])
+    gpt.pos_emb.weight = assign(gpt.pos_emb.weight, params["wpe"]) # take the numerical values of pos_emb from params, turn into a torch parm and assign 
     gpt.tok_emb.weight = assign(gpt.tok_emb.weight, params["wte"])
 
     # Transformer blocks
-    for b in range(len(params["blocks"])):
+    for b in range(len(params["blocks"])): #for each block 
         # Attention: split combined QKV weights/biases into query, key, value parts
         q_w, k_w, v_w = np.split(
             params["blocks"][b]["attn"]["c_attn"]["w"], 3, axis=-1
-        )
+        )  #q, k, v are extracted and assigned 
         gpt.trf_blocks[b].att.W_query.weight = assign(
             gpt.trf_blocks[b].att.W_query.weight, q_w.T
         )
@@ -86,7 +126,7 @@ def load_weights_into_gpt(gpt, params):
 
         q_b, k_b, v_b = np.split(
             params["blocks"][b]["attn"]["c_attn"]["b"], 3, axis=-1
-        )
+        ) #same here 
         gpt.trf_blocks[b].att.W_query.bias = assign(
             gpt.trf_blocks[b].att.W_query.bias, q_b
         )
@@ -156,6 +196,8 @@ device = torch.device("cpu")
 load_weights_into_gpt(gpt, params)
 gpt.to(device)
 
+tokenizer = tiktoken.get_encoding("gpt2")
+
 torch.manual_seed(123)
 token_ids = generate(
 model=gpt,
@@ -166,3 +208,5 @@ top_k=50,
 temperature=1.5
 )
 print("Output text:\n", token_ids_to_text(token_ids, tokenizer))
+
+
